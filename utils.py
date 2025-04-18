@@ -14,7 +14,7 @@ BATCH = Shaped[torch.Tensor, "batch"]
 SEQ = Shaped[torch.Tensor, "seq"]
 D_MODEL = Shaped[torch.Tensor, "d_model"]
 D_EMBED = Shaped[torch.Tensor, "d_embed"]
-POS_PLUS_NEW_TOKENS = Shaped[torch.Tensor, "pos_plus_new_tokens"]
+POS_NEW_TOKENS = Shaped[torch.Tensor, "pos_new_tokens"]
 VOCAB = Shaped[torch.Tensor, "vocab"]
 N = Shaped[torch.Tensor, "n"]
 
@@ -42,16 +42,12 @@ def auto_forward_n_times(
         List of generated texts
     """
     layer, vec, add_to_seq = change
-    assert vec is not None
 
     def resid_stream_addition_hook(
         value: Float[torch.Tensor, BATCH * SEQ * D_MODEL], hook: HookPoint
     ) -> Float[torch.Tensor, BATCH * SEQ * D_MODEL]:
-        assert vec is not None
         if add_to_seq is not None:
-            for seq in add_to_seq:
-                value[:, seq, :] = value[:, seq, :] + vec[None, :]
-            return value
+            return value[:, add_to_seq, :] + vec[None, :]
         else:
             return value + vec[None, None, :]
 
@@ -60,7 +56,7 @@ def auto_forward_n_times(
     if isinstance(base_text, str):
         changed_text = model.generate(base_text, max_new_tokens=n, do_sample=False, verbose=verbose)
     else:
-        output: Int[torch.Tensor, BATCH * POS_PLUS_NEW_TOKENS] = model.generate(
+        output: Int[torch.Tensor, BATCH * POS_NEW_TOKENS] = model.generate(
             base_text, max_new_tokens=n, do_sample=False, verbose=verbose
         )
         changed_text = [tokenizer.decode(output[b]) for b in range(output.shape[0])]
@@ -73,11 +69,12 @@ def get_formatted_ask(tokenizer: PreTrainedTokenizer, text: str, add_generation_
     """
     Formats text for chat completion using the tokenizer's chat template.
     """
-    return tokenizer.apply_chat_template(
+    result = tokenizer.apply_chat_template(
         [{"role": "system", "content": "You are a helpful assistant."}, {"role": "user", "content": text}],
         tokenize=False,
         add_generation_prompt=add_generation_prompt,
     )
+    return str(result)  # Ensure string return type
 
 
 def batch_steer_with_vec(
@@ -91,7 +88,7 @@ def batch_steer_with_vec(
     progress_bar: bool = True,
     temp: float = 0,
     n: int = 50,
-) -> Union[torch.Tensor, List[str], List[Any]]:
+) -> Union[Float[torch.Tensor, BATCH * SEQ * D_MODEL], List[str], List[Float[torch.Tensor, BATCH * SEQ * VOCAB]]]:
     """
     Applies steering vectors in batches to generate text or analyze model behavior.
     """
@@ -130,7 +127,7 @@ def batch_steer_with_vec(
         elif return_all_logits:
             with torch.no_grad():
                 logits = model.forward(prompt_batch)
-                results.extend(logits[:, -1])
+                results.extend([logits[i, -1] for i in range(logits.shape[0])])
         else:
             steered_text = model.generate(prompt_batch, max_new_tokens=n, temperature=temp)
             results.extend(steered_text)
@@ -138,9 +135,11 @@ def batch_steer_with_vec(
     model.reset_hooks()
 
     if return_layer_16:
-        return torch.cat(results, dim=0)
-    elif return_top_logits or return_all_logits:
+        return torch.cat(results, dim=0)  # type: ignore
+    elif return_top_logits:
         return results
+    elif return_all_logits:
+        return results  # type: ignore
     else:
         return list(map(tokenizer.decode, results))
 
@@ -187,6 +186,7 @@ def melbo_ortho(
             return_layer_16=True,
             progress_bar=False,
         )
+        assert isinstance(layer_16_acts, torch.Tensor), "Expected tensor for layer_16_acts"
         activation_difference_loss = (layer_16_acts.mean(dim=1) - target_later).norm()
         loss = activation_difference_loss
         opt.zero_grad()

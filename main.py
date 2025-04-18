@@ -3,21 +3,23 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import transformer_lens  # type: ignore
-from jaxtyping import Float
+from jaxtyping import Float, Shaped
 from torch import Tensor
 from transformers import AutoTokenizer
 
-from utils import (
-    BATCH,
-    D_MODEL,
-    VOCAB,
-    batch_steer_with_vec,
-    get_formatted_ask,
-    to_tensor_tokens,
-)
+from utils import batch_steer_with_vec, get_formatted_ask, to_tensor_tokens
+
+# Type definitions for shape annotations
+BATCH = Shaped[torch.Tensor, "batch"]
+SEQ = Shaped[torch.Tensor, "seq"]
+D_MODEL = Shaped[torch.Tensor, "d_model"]
+D_EMBED = Shaped[torch.Tensor, "d_embed"]
+POS_NEW_TOKENS = Shaped[torch.Tensor, "pos_new_tokens"]
+VOCAB = Shaped[torch.Tensor, "vocab"]
+N = Shaped[torch.Tensor, "n"]
 
 
-def load_and_validate_vectors(vector_path: str, min_norm: float = 1e-1) -> Float[Tensor, BATCH * D_MODEL]:
+def load_and_validate_vectors(vector_path: str, min_norm: float = 1e-1) -> Float[Tensor, N * D_MODEL]:
     """
     Loads and validates orthogonal vectors from a file.
 
@@ -44,7 +46,7 @@ def load_and_validate_vectors(vector_path: str, min_norm: float = 1e-1) -> Float
     return vectors
 
 
-def plot_kl_divergence(logits_outputs: list[Float[Tensor, VOCAB]], window_size: int = 50) -> None:
+def plot_kl_divergence(logits_outputs: list[Float[Tensor, BATCH * SEQ * VOCAB]], window_size: int = 50) -> None:
     """Plots KL divergence between probability distributions."""
     probs = [F.softmax(logits, dim=-1) for logits in logits_outputs]
     kl_divergences = [F.kl_div(probs[0].log(), prob, reduction="sum").item() for prob in probs]
@@ -62,7 +64,7 @@ def plot_kl_divergence(logits_outputs: list[Float[Tensor, VOCAB]], window_size: 
     plt.show()
 
 
-def plot_vector_magnitudes(vectors: Float[Tensor, BATCH * D_MODEL], window_size: int = 50) -> None:
+def plot_vector_magnitudes(vectors: Float[Tensor, N * D_MODEL], window_size: int = 50) -> None:
     """Plots magnitudes of steering vectors."""
     magnitudes = vectors.norm(dim=-1).cpu().numpy()
 
@@ -81,18 +83,18 @@ def plot_vector_magnitudes(vectors: Float[Tensor, BATCH * D_MODEL], window_size:
 
 def main() -> None:
     # Setup device
-    dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Initialize model and tokenizer
-    model = transformer_lens.HookedTransformer.from_pretrained("Qwen/Qwen1.5-1.8B-Chat", device=dev)
+    model = transformer_lens.HookedTransformer.from_pretrained("Qwen/Qwen1.5-1.8B-Chat", device=device)
     tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen1.5-1.8B-Chat")
 
     # Vector file paths
     vector_files: dict[str, str] = {
-        "alien": "becomes an alien species-4-RUN-2.pt",
-        "math": "this one gives a math problem-1-RUN-2.pt",
-        "code": "this one gives python code-0-RUN-2.pt",
-        "jailbreak": "very clean jailbreak-7-RUN-2.pt",
+        "alien": "vector_files/becomes an alien species-4-RUN-2.pt",
+        "math": "vector_files/this one gives a math problem-1-RUN-2.pt",
+        "code": "vector_files/this one gives python code-0-RUN-2.pt",
+        "jailbreak": "vector_files/very clean jailbreak-7-RUN-2.pt",
     }
 
     # Load and validate vectors
@@ -125,6 +127,9 @@ def main() -> None:
     all_logits = batch_steer_with_vec(
         model, tokenizer, vectors_ortho, formatted_prompt, progress_bar=False, temp=1.0, return_all_logits=True
     )
+    assert isinstance(all_logits, list) and all(
+        isinstance(x, torch.Tensor) for x in all_logits
+    ), "Expected list of tensors"
 
     # Generate plots
     plot_kl_divergence(all_logits)
