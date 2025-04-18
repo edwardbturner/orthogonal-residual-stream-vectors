@@ -137,11 +137,11 @@ def batch_steer_with_vec(
     if return_layer_16:
         return torch.cat(results, dim=0)  # type: ignore
     elif return_top_logits:
-        return results
+        return results  # type: ignore
     elif return_all_logits:
         return results  # type: ignore
     else:
-        return list(map(tokenizer.decode, results))
+        return list(map(tokenizer.decode, results))  # type: ignore
 
 
 def to_tensor_tokens(tokenizer: PreTrainedTokenizer, text: str) -> torch.Tensor:

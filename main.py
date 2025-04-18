@@ -19,7 +19,7 @@ VOCAB = Shaped[torch.Tensor, "vocab"]
 N = Shaped[torch.Tensor, "n"]
 
 
-def load_and_validate_vectors(vector_path: str, min_norm: float = 1e-1) -> Float[Tensor, N * D_MODEL]:
+def load_and_validate_vectors(vector_path: str, min_norm: float = 0.1) -> Float[Tensor, N * D_MODEL]:
     """
     Loads and validates orthogonal vectors from a file.
 
@@ -127,9 +127,8 @@ def main() -> None:
     all_logits = batch_steer_with_vec(
         model, tokenizer, vectors_ortho, formatted_prompt, progress_bar=False, temp=1.0, return_all_logits=True
     )
-    assert isinstance(all_logits, list) and all(
-        isinstance(x, torch.Tensor) for x in all_logits
-    ), "Expected list of tensors"
+    assert isinstance(all_logits, list), "Expected list of tensors"
+    assert all(isinstance(x, torch.Tensor) for x in all_logits), "Expected list of tensors"
 
     # Generate plots
     plot_kl_divergence(all_logits)

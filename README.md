@@ -29,10 +29,12 @@ pip install -r requirements.txt
 
 ## Usage
 
-The project is organized into two main files:
+The project is organized into three main files:
 - `utils.py`: Contains utility functions for vector manipulation and model interaction
 - `main.py`: Contains the main execution flow and analysis code
+- `generate_vector.py`: Script for generating new steering vectors
 
+### Running Analysis
 To run the analysis:
 ```bash
 python main.py
@@ -44,12 +46,23 @@ This will:
 3. Generate and analyze model outputs
 4. Create visualizations of vector properties and model behavior
 
+### Generating New Vectors
+To create a new steering vector:
+```bash
+python generate_vector.py
+```
+
+You can modify `generate_vector.py` to:
+- Change the target behavior by modifying the prompt
+- Adjust the training parameters (epochs, learning rate, etc.)
+- Make the vector orthogonal to different existing vectors
+
 ## Vector Files
+These files should contain torch tensors of steering vectors. You can create new vectors for different behaviors by:
+1. Modifying the prompt in `generate_vector.py`
+2. Running the generation script
+3. Adding the new vector to the `vector_files` dictionary in `main.py`
 
-The project expects vector files in the following format:
-- `becomes an alien species-4-RUN-2.pt`
-- `this one gives a math problem-1-RUN-2.pt`
-- `this one gives python code-0-RUN-2.pt`
-- `very clean jailbreak-7-RUN-2.pt`
+## License
 
-These files should contain torch tensors of steering vectors.
+MIT License - See [LICENSE](LICENSE) for details.
