@@ -1,3 +1,11 @@
+## Credits
+
+This project is a quick clean of the original implementation here:
+[melbo-ortho](https://github.com/g-w1/melbo-ortho)
+from the LessWrong post here:
+[I Found >800 Orthogonal Write Code Steering](https://www.lesswrong.com/posts/CbSEZSpjdpnvBcEvc/i-found-greater-than-800-orthogonal-write-code-steering)
+
+
 # Orthogonal Residual Stream Vectors
 
 This project implements and analyzes orthogonal residual stream vectors for language model steering. It provides tools for:
@@ -11,7 +19,7 @@ This project implements and analyzes orthogonal residual stream vectors for lang
 1. Create and activate a virtual environment:
 ```bash
 python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+source .venv/bin/activate
 ```
 
 2. Install dependencies:
@@ -45,7 +53,3 @@ The project expects vector files in the following format:
 - `very clean jailbreak-7-RUN-2.pt`
 
 These files should contain torch tensors of steering vectors.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
